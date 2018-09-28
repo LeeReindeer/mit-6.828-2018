@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,16 +60,52 @@ void runcmd(struct cmd *cmd) {
     ecmd = (struct execcmd *)cmd;
     if (ecmd->argv[0] == 0)
       _exit(0);
-    // fprintf(stderr, "exec not implemented\n");
-    // todo Your code here ...
+
+    if (access(ecmd->argv[0], F_OK) == 0) { // check current dir
+      int ok = execv(ecmd->argv[0], ecmd->argv);
+    } else {
+      const char *path = ecmd->argv[0];
+
+      char *str1, *token, *saveptr1;
+      int i;
+      char *env_path = getenv("PATH");
+      char *env_paths[100];
+      for (i = 0, str1 = env_path;; i++, str1 = NULL) {
+        token = strtok_r(str1, ":", &saveptr1);
+        if (token == NULL)
+          break;
+        env_paths[i] = token;
+      }
+      int find = 0;
+      char *abs_path; // evn_path[i] + "/" + path;
+      int j;
+      for (j = 0; j < i && find == 0; j++) {
+        abs_path = (char *)malloc(strlen(env_paths[j]) + strlen(path) + 1);
+        strcpy(abs_path, env_paths[j]);
+        strcat(abs_path, "/");
+        strcat(abs_path, path);
+        if (access(abs_path, F_OK) == 0) {
+          find = 1;
+          execv(abs_path, ecmd->argv);
+        }
+        free(abs_path);
+      }
+      if (!find) {
+        fprintf(stderr, "Command not find: %s\n", ecmd->argv[0]);
+      }
+    }
     break;
 
   case '>':
   case '<':
     rcmd = (struct redircmd *)cmd;
-    fprintf(stderr, "redir not implemented\n");
-    // todo Your code here ...
-    runcmd(rcmd->cmd);
+    errno = 0;
+    close(rcmd->fd);
+
+    rcmd->fd = open(rcmd->file, rcmd->flags, 0644);
+    if (rcmd->fd == -1) {
+      fprintf(stderr, "Error: %s", strerror(errno));
+    }
     break;
 
   case '|':
@@ -82,7 +119,7 @@ void runcmd(struct cmd *cmd) {
 
 int getcmd(char *buf, int nbuf) {
   if (isatty(fileno(stdin)))
-    fprintf(stdout, "6.828$ ");
+    fprintf(stdout, "rsh$ ");
   memset(buf, 0, nbuf);
   if (fgets(buf, nbuf, stdin) == 0)
     return -1; // EOF
