@@ -62,7 +62,7 @@ void runcmd(struct cmd *cmd) {
       _exit(0);
 
     if (access(ecmd->argv[0], F_OK) == 0) { // check current dir
-      int ok = execv(ecmd->argv[0], ecmd->argv);
+      execv(ecmd->argv[0], ecmd->argv);
     } else {
       const char *path = ecmd->argv[0];
 
@@ -110,7 +110,31 @@ void runcmd(struct cmd *cmd) {
 
   case '|':
     pcmd = (struct pipecmd *)cmd;
-    // todo Your code here ...
+    int pid[2];
+    pipe(p);
+    if (fork1() == 0) {
+      close(1);
+      dup(p[1]); // write left cmd's output to p[1];
+      close(p[0]);
+      close(p[1]);
+      runcmd(pcmd->left);
+    }
+    if (fork1() == 0) {
+      close(0);
+      dup(p[0]); // read right cmd's input from p[0]
+      close(p[0]);
+      close(p[1]);
+      runcmd(pcmd->right);
+    }
+    close(p[0]);
+    close(p[1]);
+    /**
+     * The wait() system call suspends execution of the calling
+     * process  until one  of its children terminates.  The call wait(&wstatus)
+     * is equivalent to: waitpid(-1, &wstatus, 0);
+     */
+    wait(&r);
+    wait(&r);
     break;
   }
   _exit(0);
