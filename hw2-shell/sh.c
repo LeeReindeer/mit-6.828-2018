@@ -101,16 +101,15 @@ void runcmd(struct cmd *cmd) {
     rcmd = (struct redircmd *)cmd;
     errno = 0;
     close(rcmd->fd);
-
     rcmd->fd = open(rcmd->file, rcmd->flags, 0644);
     if (rcmd->fd == -1) {
       fprintf(stderr, "Error: %s", strerror(errno));
     }
+    runcmd(rcmd->cmd);
     break;
 
   case '|':
     pcmd = (struct pipecmd *)cmd;
-    fprintf(stderr, "pipe not implemented\n");
     // todo Your code here ...
     break;
   }
@@ -174,7 +173,7 @@ struct cmd *redircmd(struct cmd *subcmd, char *file, int type) {
   cmd->cmd = subcmd;
   cmd->file = file;
   cmd->flags = (type == '<') ? O_RDONLY : O_WRONLY | O_CREAT | O_TRUNC;
-  cmd->fd = (type == '<') ? 0 : 1;
+  cmd->fd = (type == '<') ? 0 : 1; // stdin : stdout
   return (struct cmd *)cmd;
 }
 
