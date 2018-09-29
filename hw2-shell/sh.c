@@ -141,8 +141,15 @@ void runcmd(struct cmd *cmd) {
 }
 
 int getcmd(char *buf, int nbuf) {
-  if (isatty(fileno(stdin)))
-    fprintf(stdout, "rsh$ ");
+  if (isatty(fileno(stdin))) {
+    char cwd[FILENAME_MAX];
+    if (getcwd(cwd, sizeof cwd)) {
+      fprintf(stdout, "%s\nrsh$ ", cwd);
+    } else {
+      fprintf(stderr, "cannot get current dir");
+      _exit(-1);
+    }
+  }
   memset(buf, 0, nbuf);
   if (fgets(buf, nbuf, stdin) == 0)
     return -1; // EOF
